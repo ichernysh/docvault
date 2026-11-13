@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: docs-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/docvault}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # TODO(you): issuer-uri / jwk-set-uri depend on how you configure KC hostname in compose
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/docvault}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
