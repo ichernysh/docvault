@@ -316,7 +316,7 @@ flowchart LR
 **Этап 1 — Локальный Keycloak + Spring (Docker Compose)**
 
 - [x] Monorepo `docvault`: `docs-api/`, `keycloak/`, `lambdas/`, `infra/`, `k8s/`, `.github/workflows/`, `docker-compose.yml`.
-- [ ] Compose: Keycloak + Postgres + `docs-api`; realm `docvault` импортируется из JSON при старте.
+- [x] Compose: Keycloak + Postgres + `docs-api`; realm `docvault` импортируется из JSON при старте.
 - [ ] `docs-api` как resource server: CRUD документов, роли `viewer`/`editor`/`admin`, claim `tenant_id` через mapper.
 - [ ] Fine-grained права: шаринг документа конкретному юзеру, проверка в `@PreAuthorize`.
 - [ ] Тесты: `spring-security-test` + Testcontainers с реальным Keycloak.

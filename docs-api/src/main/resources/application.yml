@@ -13,8 +13,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          # TODO(you): issuer-uri / jwk-set-uri depend on how you configure KC hostname in compose
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/docvault}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8080/realms/docvault/protocol/openid-connect/certs}
 
 management:
   endpoints:

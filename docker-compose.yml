@@ -35,5 +35,24 @@ services:
       postgres:
         condition: service_healthy
 
+  docs-api:
+    build: ./docs-api
+    environment:
+      SERVER_PORT: 8081
+      DB_URL: jdbc:postgresql://postgres:5432/docvault
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      # `iss` is compared with the public address (what is written into tokens) ...
+      KEYCLOAK_ISSUER_URI: http://localhost:8080/realms/docvault
+      # ... but public keys are fetched over the internal docker network
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/docvault/protocol/openid-connect/certs
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+
 volumes:
   pgdata:
