@@ -1,0 +1,106 @@
+# DocVault
+
+A learning project: a mini document SaaS built around Keycloak (OIDC / OAuth2) and a Spring Boot resource server.
+Later stages add AWS (ECS, Terraform, Lambda, SNS/SQS, DynamoDB) and local Kubernetes.
+
+The full plan and architecture live in [docs/PLAN.md](docs/PLAN.md).
+
+## What works now (stage 1)
+
+- `docs-api`: Spring Boot 3 resource server with CRUD for documents and per-user sharing.
+- Keycloak realm `docvault`, imported from `keycloak/realm-docvault.json`.
+- Authorization: realm roles (`viewer`, `editor`, `admin`), tenant isolation by the `tenant_id` claim,
+  sharing (`READ` / `WRITE`) checked in `@PreAuthorize`.
+- Tests with a real Keycloak (Testcontainers).
+
+## Local run
+
+Requirements: Docker (running), JDK 21+ (only for running tests outside Docker).
+
+```bash
+docker compose up -d --build
+docker compose ps          # wait until keycloak and docs-api are Up
+```
+
+| Service | URL |
+| --- | --- |
+| Keycloak admin console | http://localhost:8080 (`admin` / `admin`) |
+| docs-api | http://localhost:8081 |
+| Postgres | localhost:5432 (`postgres` / `postgres`, databases `keycloak` and `docvault`) |
+
+Values can be overridden with a local `.env` file (see `.env.example`). These are throwaway dev credentials, not secrets.
+
+### Test users
+
+All have the password `password`.
+
+| User | Realm role | Tenant |
+| --- | --- | --- |
+| alice | editor | acme |
+| bob | viewer | acme |
+| carol | admin | globex |
+
+### Try it
+
+```bash
+# decoded claims of alice's access token (iss, aud, realm_access.roles, tenant_id)
+scripts/get-token.sh alice
+
+# call the API with a real token
+TOKEN=$(RAW=1 scripts/get-token.sh alice)
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:8081/api/documents
+
+# 14 end-to-end checks of the 401 / 403 / 404 contract
+scripts/smoke-test.sh
+```
+
+Expected statuses: no token gives `401`, a user without the needed right gives `403`,
+a document from another tenant gives `404` (its existence is not revealed).
+
+### Tests
+
+```bash
+cd docs-api
+./mvnw test      # fast tests (need Docker for Postgres)
+./mvnw verify    # + integration tests with a real Keycloak (*IT)
+```
+
+### Stop and reset
+
+```bash
+docker compose down        # stop, keep data
+docker compose down -v     # stop and delete the Postgres volume; the realm is re-imported from JSON
+```
+
+## Troubleshooting
+
+**`HTTPS required` when calling Keycloak from the host.** The realm setting `sslRequired=external` allows plain HTTP
+only from local addresses, and Docker Desktop port forwarding can make requests look external.
+This is a local-dev issue only.
+
+- Realm `docvault` (tokens, API calls): already set to `"sslRequired": "none"` in `keycloak/realm-docvault.json`,
+  so nothing to do.
+- Realm `master` (the admin console at http://localhost:8080): Keycloak creates it itself and it is not part of
+  our JSON, so switch the requirement off once after each fresh start:
+
+```bash
+KCADM="docker compose exec keycloak /opt/keycloak/bin/kcadm.sh"
+$KCADM config credentials --server http://localhost:8080 --realm master --user admin --password admin
+$KCADM update realms/master -s sslRequired=NONE
+```
+
+This lives in the Keycloak database, so it is lost after `docker compose down -v`.
+Never do this outside local development: in the cloud, Keycloak sits behind HTTPS.
+
+In the admin console, the realm switcher is in the top-left corner: pick `docvault` there (you start in `master`).
+
+## Repository layout
+
+```
+docs/PLAN.md            plan and architecture
+docs-api/               Spring Boot service
+keycloak/               realm export (realm-docvault.json)
+docker/                 helper files for compose (Postgres init)
+scripts/                get-token.sh, smoke-test.sh
+docker-compose.yml      local environment
+```
