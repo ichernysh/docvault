@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DocVault</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>DocVault</h1>
+    <div id="auth">
+      <span id="who">not signed in</span>
+      <span id="expires"></span>
+      <button id="login">Sign in</button>
+      <button id="logout" hidden>Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Token claims</h2>
+      <p class="hint">What Keycloak wrote into your access token (decoded in the browser, not verified here).</p>
+      <pre id="claims">sign in to see them</pre>
+    </section>
+
+    <section>
+      <h2>API</h2>
+      <p class="hint">Calls <code>docs-api</code> with <code>Authorization: Bearer &lt;token&gt;</code>.</p>
+      <button id="list" disabled>GET /api/documents</button>
+      <button id="refresh" disabled>Refresh token now</button>
+      <form id="create">
+        <input id="title" placeholder="Document title" required>
+        <button type="submit" disabled>Create</button>
+      </form>
+      <pre id="response"></pre>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

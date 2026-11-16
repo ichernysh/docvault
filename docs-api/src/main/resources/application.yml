@@ -19,6 +19,11 @@ spring:
           audiences:
             - docs-api
 
+app:
+  cors:
+    # pages allowed to call this API from a browser; comma-separated; in the cloud, set it via the environment
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
 management:
   endpoints:
     web:

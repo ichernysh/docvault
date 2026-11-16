@@ -54,5 +54,13 @@ services:
       keycloak:
         condition: service_started
 
+  # static files of the SPA; the browser (not this container) talks to Keycloak and docs-api
+  web:
+    image: nginx:alpine
+    volumes:
+      - ./web:/usr/share/nginx/html:ro
+    ports:
+      - "3000:80"
+
 volumes:
   pgdata:
