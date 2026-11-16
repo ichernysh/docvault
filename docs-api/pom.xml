@@ -96,7 +96,32 @@
     </dependencies>
 
     <build>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
+            <!-- the same realm file that docker compose imports: tests run against the real config -->
+            <testResource>
+                <directory>../keycloak</directory>
+                <includes>
+                    <include>realm-docvault.json</include>
+                </includes>
+            </testResource>
+        </testResources>
         <plugins>
+            <!-- *IT classes run in `verify`, not in `test`: they start a real Keycloak and are slow -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

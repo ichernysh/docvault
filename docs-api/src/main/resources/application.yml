@@ -15,6 +15,9 @@ spring:
         jwt:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/docvault}
           jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8080/realms/docvault/protocol/openid-connect/certs}
+          # token is accepted only if its `aud` contains at least one of these values
+          audiences:
+            - docs-api
 
 management:
   endpoints:
