@@ -323,8 +323,9 @@ flowchart LR
 
 **Этап 2 — Фронт и флоу**
 
-- [ ] Логин через браузер: простая SPA (Authorization Code + PKCE) или BFF на Spring (`oauth2Login`).
-- [ ] Refresh, logout, MFA (OTP) и passkey в настройках realm.
+- [x] Логин через браузер: простая SPA (Authorization Code + PKCE) или BFF на Spring (`oauth2Login`). Сделано: SPA на чистом JS (`web/`, nginx в compose). BFF можно сделать позже для сравнения.
+- [x] Refresh и logout (в SPA; PKCE S256 обязателен в клиенте `web`; CORS в `docs-api`).
+- [ ] MFA (OTP) и passkey в настройках realm.
 - [ ] Брокеринг: «Войти через GitHub» (бесплатный OAuth App).
 
 **Этап 3 — CI в GitHub Actions**

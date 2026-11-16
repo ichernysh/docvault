@@ -5,7 +5,10 @@ Later stages add AWS (ECS, Terraform, Lambda, SNS/SQS, DynamoDB) and local Kuber
 
 The full plan and architecture live in [docs/PLAN.md](docs/PLAN.md).
 
-## What works now (stage 1)
+## What works now (stages 1 and 2)
+
+- `web/`: a plain JavaScript page (no libraries) that signs in through the Keycloak login page
+  (Authorization Code + PKCE), shows the token claims, calls `docs-api`, refreshes the token and signs out.
 
 - `docs-api`: Spring Boot 3 resource server with CRUD for documents and per-user sharing.
 - Keycloak realm `docvault`, imported from `keycloak/realm-docvault.json`.
@@ -57,6 +60,22 @@ scripts/smoke-test.sh
 Expected statuses: no token gives `401`, a user without the needed right gives `403`,
 a document from another tenant gives `404` (its existence is not revealed).
 
+### Web page (browser login)
+
+Open http://localhost:3000 (use `localhost`, not `127.0.0.1`: Keycloak accepts exactly this address).
+
+1. **Sign in** sends the browser to Keycloak. The password is typed only there; the page gets a one-time `code`
+   and exchanges it for tokens, proving it started the login with the PKCE secret.
+2. The page shows the claims of the access token and a countdown of its lifetime (5 minutes).
+3. **GET /api/documents** and **Create** call `docs-api` with `Authorization: Bearer <token>`.
+   Try `bob` (viewer, gets 403 on create) and `carol` (other tenant) in a private window.
+4. **Refresh token now** trades the refresh token for a new token pair without a password.
+   The page also does it automatically when less than 30 seconds are left.
+5. **Sign out** ends the Keycloak session too, so the next sign-in asks for the password again.
+
+Tokens are kept only in the page memory. After a reload, click **Sign in** again: Keycloak remembers the session
+and returns immediately.
+
 ### Tests
 
 ```bash
@@ -99,6 +118,7 @@ In the admin console, the realm switcher is in the top-left corner: pick `docvau
 ```
 docs/PLAN.md            plan and architecture
 docs-api/               Spring Boot service
+web/                    browser page (login, API calls), served by nginx on port 3000
 keycloak/               realm export (realm-docvault.json)
 docker/                 helper files for compose (Postgres init)
 scripts/                get-token.sh, smoke-test.sh
