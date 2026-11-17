@@ -5,7 +5,9 @@ Later stages add AWS (ECS, Terraform, Lambda, SNS/SQS, DynamoDB) and local Kuber
 
 The full plan and architecture live in [docs/PLAN.md](docs/PLAN.md).
 
-## What works now (stages 1 and 2)
+## What works now (stages 1 to 3)
+
+- CI on GitHub Actions: every pull request builds `docs-api` and runs all tests on Java 21 and 25 (see [CI](#ci)).
 
 - `web/`: a plain JavaScript page (no libraries) that signs in through the Keycloak login page
   (Authorization Code + PKCE), shows the token claims, calls `docs-api`, refreshes the token and signs out.
@@ -91,6 +93,24 @@ docker compose down        # stop, keep data
 docker compose down -v     # stop and delete the Postgres volume; the realm is re-imported from JSON
 ```
 
+## CI
+
+Workflow `.github/workflows/ci.yml` runs on every pull request and on every push to `main`.
+
+- Job `build` runs `./mvnw -B verify` in `docs-api` (unit tests, then integration tests with a real Keycloak
+  through Testcontainers) on a matrix of Java 21 and 25. The checks are named `build (21)` and `build (25)`.
+- The shared setup (Temurin JDK and Maven cache) lives in the composite action
+  `.github/actions/setup-java-maven`; the workflow only has to check out the code first.
+- The workflow token has `contents: read` only.
+- Test reports are uploaded as artifacts `test-reports-java-21` and `test-reports-java-25`, also when tests fail.
+  Open the run on the Actions tab and scroll down to **Artifacts**, or:
+  `gh run download <run-id> -n test-reports-java-21`. Reports are kept for 7 days.
+- Dependabot (`.github/dependabot.yml`) opens weekly pull requests for Maven dependencies, GitHub Actions and Docker
+  base images. Major updates of Spring Boot and of the Java images are ignored on purpose.
+- The ruleset `protect-main` allows changes to `main` only through a pull request with both checks green,
+  and forbids force pushes and deleting `main`. If you rename the job or change the matrix, update the required
+  checks in the ruleset, otherwise every pull request stays blocked.
+
 ## Troubleshooting
 
 **`HTTPS required` when calling Keycloak from the host.** The realm setting `sslRequired=external` allows plain HTTP
@@ -122,5 +142,6 @@ web/                    browser page (login, API calls), served by nginx on port
 keycloak/               realm export (realm-docvault.json)
 docker/                 helper files for compose (Postgres init)
 scripts/                get-token.sh, smoke-test.sh
+.github/                workflows/ci.yml, actions/setup-java-maven, dependabot.yml
 docker-compose.yml      local environment
 ```
