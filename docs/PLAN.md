@@ -325,8 +325,8 @@ flowchart LR
 
 - [x] Логин через браузер: простая SPA (Authorization Code + PKCE) или BFF на Spring (`oauth2Login`). Сделано: SPA на чистом JS (`web/`, nginx в compose). BFF можно сделать позже для сравнения.
 - [x] Refresh и logout (в SPA; PKCE S256 обязателен в клиенте `web`; CORS в `docs-api`).
-- [ ] MFA (OTP) и passkey в настройках realm.
-- [ ] Брокеринг: «Войти через GitHub» (бесплатный OAuth App).
+- [x] MFA (OTP): проверено локально на пользователе `dave` (Required action «Configure OTP»); в `realm-docvault.json` не добавлялось, потому что у пользователя с OTP не работает password grant, на котором держатся тесты. Passkey пропущен по решению владельца (в Keycloak 26.8 нужна сборка отдельного потока входа).
+- [ ] Брокеринг: «Войти через GitHub» (бесплатный OAuth App). Отложено по решению владельца, можно вернуться после CI.
 
 **Этап 3 — CI в GitHub Actions**
 
