@@ -5,9 +5,7 @@ Later stages add AWS (ECS, Terraform, Lambda, SNS/SQS, DynamoDB) and local Kuber
 
 The full plan and architecture live in [docs/PLAN.md](docs/PLAN.md).
 
-## What works now (stages 1 to 3)
-
-- CI on GitHub Actions: every pull request builds `docs-api` and runs all tests on Java 21 and 25 (see [CI](#ci)).
+## What works now (stages 1 and 2)
 
 - `web/`: a plain JavaScript page (no libraries) that signs in through the Keycloak login page
   (Authorization Code + PKCE), shows the token claims, calls `docs-api`, refreshes the token and signs out.
@@ -93,23 +91,46 @@ docker compose down        # stop, keep data
 docker compose down -v     # stop and delete the Postgres volume; the realm is re-imported from JSON
 ```
 
-## CI
+## AWS
 
-Workflow `.github/workflows/ci.yml` runs on every pull request and on every push to `main`.
+The cloud part lives in `infra/` and is described with Terraform. The account is on the AWS Free plan.
 
-- Job `build` runs `./mvnw -B verify` in `docs-api` (unit tests, then integration tests with a real Keycloak
-  through Testcontainers) on a matrix of Java 21 and 25. The checks are named `build (21)` and `build (25)`.
-- The shared setup (Temurin JDK and Maven cache) lives in the composite action
-  `.github/actions/setup-java-maven`; the workflow only has to check out the code first.
-- The workflow token has `contents: read` only.
-- Test reports are uploaded as artifacts `test-reports-java-21` and `test-reports-java-25`, also when tests fail.
-  Open the run on the Actions tab and scroll down to **Artifacts**, or:
-  `gh run download <run-id> -n test-reports-java-21`. Reports are kept for 7 days.
-- Dependabot (`.github/dependabot.yml`) opens weekly pull requests for Maven dependencies, GitHub Actions and Docker
-  base images. Major updates of Spring Boot and of the Java images are ignored on purpose.
-- The ruleset `protect-main` allows changes to `main` only through a pull request with both checks green,
-  and forbids force pushes and deleting `main`. If you rename the job or change the matrix, update the required
-  checks in the ruleset, otherwise every pull request stays blocked.
+### Account constraints
+
+- **Region: `eu-north-1` only.** In other regions the account's service control policies (SCP) deny basic EC2 calls.
+- **No OIDC for GitHub Actions.** The same SCPs deny `iam:*Provider*`, so CI will use an access key of a dedicated
+  IAM user (`ci-deploy`) stored in GitHub Secrets. Not creating it until the workflows need it.
+- No MFA for console sign-in (this account type has no such setting). Do not click "Activate advanced features":
+  it is irreversible, creates AWS Organizations and removes the spend limit.
+
+### Before any AWS command
+
+Use a named profile. Never rely on the default one (it may point to a different account).
+
+```bash
+export AWS_PROFILE=docvault
+aws sts get-caller-identity     # Account must be the DocVault account
+```
+
+The profile is created once with `aws configure --profile docvault` (region `eu-north-1`, output `json`)
+using an access key of the IAM user `docvault-terraform`. Keys never go into the repository.
+
+### Bootstrap (`infra/bootstrap`)
+
+Applied once by hand with a **local state** (the state bucket does not exist before it is created).
+It creates the S3 bucket for the state of later modules (versioning, public access blocked),
+a monthly cost budget with email alerts, and the IAM user `ci-deploy` (no access key yet).
+
+```bash
+cd infra/bootstrap
+cp terraform.tfvars.example terraform.tfvars   # fill in account id, bucket name, email (git-ignored)
+terraform init
+terraform plan
+terraform apply
+```
+
+`terraform.tfvars` and `terraform.tfstate*` are git-ignored: the state is local and must be backed up
+outside the repository until later modules keep theirs in the S3 bucket.
 
 ## Troubleshooting
 
@@ -141,7 +162,7 @@ docs-api/               Spring Boot service
 web/                    browser page (login, API calls), served by nginx on port 3000
 keycloak/               realm export (realm-docvault.json)
 docker/                 helper files for compose (Postgres init)
+infra/bootstrap/        Terraform: state bucket, budget, CI user (applied once, local state)
 scripts/                get-token.sh, smoke-test.sh
-.github/                workflows/ci.yml, actions/setup-java-maven, dependabot.yml
 docker-compose.yml      local environment
 ```

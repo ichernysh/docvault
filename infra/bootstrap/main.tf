@@ -79,3 +79,19 @@ resource "aws_budgets_budget" "monthly" {
     subscriber_email_addresses = [var.budget_email]
   }
 }
+
+# --- 3. IAM user for GitHub Actions ---
+
+# Programmatic-only user: no console password. Its access key is created manually in the
+# console and stored in GitHub Secrets, so the secret part never lands in Terraform state.
+resource "aws_iam_user" "ci_deploy" {
+  name = "ci-deploy"
+}
+
+# Full access for now: CI will run `terraform apply`, which creates VPC, IAM, ECS and more.
+# Separate user from docvault-terraform so either key can be revoked independently.
+# TODO later: narrow this down once we know exactly what CI needs.
+resource "aws_iam_user_policy_attachment" "ci_deploy_admin" {
+  user       = aws_iam_user.ci_deploy.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}

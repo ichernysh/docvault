@@ -337,8 +337,8 @@ flowchart LR
 
 **Этап 4 — AWS-фундамент через Terraform**
 
-- [ ] AWS-аккаунт на Free plan, MFA на root, свой IAM-пользователь / Identity Center, Budget alert.
-- [ ] `infra/bootstrap`: S3 для state, бюджет, IAM-пользователь `ci-deploy` с access key для GitHub Secrets (вместо OIDC provider и ролей: OIDC недоступен на аккаунте).
+- [x] AWS-аккаунт на Free plan, свой IAM-пользователь `docvault-terraform`, Budget alert. Известные пробелы: нет MFA для входа в консоль (новый тип аккаунта этого не даёт без «Activate advanced features»), Identity Center не используется (создаёт Organizations). Регион только `eu-north-1`: в других SCP запрещает базовые операции EC2.
+- [x] `infra/bootstrap`: S3 для state, бюджет, IAM-пользователь `ci-deploy` (access key создаётся позже, на 4c, вместо OIDC provider и ролей: SCP запрещает `iam:*Provider*`).
 - [ ] Модули `network`, `ecs-cluster`, ECR-репозитории.
 - [ ] `terraform-plan.yml` (план в PR) и `terraform-apply.yml` (environment `prod` с approval).
 
