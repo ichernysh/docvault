@@ -1,0 +1,32 @@
+version: 2
+
+updates:
+  # Java dependencies of docs-api (pom.xml)
+  - package-ecosystem: maven
+    directory: /docs-api
+    schedule:
+      interval: weekly
+    ignore:
+      # CLAUDE.md: we stay on Spring Boot 3.x; a move to 4.x is a deliberate migration, not a bot PR
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
+
+  # Versions of the actions used in workflows and in our own composite action
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/actions/*
+    schedule:
+      interval: weekly
+
+  # Base images in docs-api/Dockerfile
+  - package-ecosystem: docker
+    directory: /docs-api
+    schedule:
+      interval: weekly
+    ignore:
+      # the Java version (21) is a project decision, so no automatic jump to a newer major
+      - dependency-name: "eclipse-temurin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "maven"
+        update-types: ["version-update:semver-major"]
