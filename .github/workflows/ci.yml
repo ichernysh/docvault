@@ -16,6 +16,10 @@ jobs:
   build:
     # The machine the job runs on. It is created fresh for every run: nothing from your laptop is there.
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [ 21, 25 ]
 
     steps:
       # 1. The machine is empty: first get the repository code
@@ -25,7 +29,7 @@ jobs:
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: 21
+          java-version: ${{ matrix.java }}
           cache: maven
 
       # 3. The same command you run locally: batch mode, full build with all tests, from the module folder
@@ -39,7 +43,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: test-reports
+          # artifact names must be unique within a run: every matrix job needs its own
+          name: test-reports-java-${{ matrix.java }}
           path: |
             docs-api/target/surefire-reports
             docs-api/target/failsafe-reports
