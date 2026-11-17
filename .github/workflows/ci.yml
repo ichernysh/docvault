@@ -26,6 +26,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+          cache: maven
 
       # 3. The same command you run locally: batch mode, full build with all tests, from the module folder
       - name: Build and test
