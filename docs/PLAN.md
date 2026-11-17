@@ -330,9 +330,10 @@ flowchart LR
 
 **Этап 3 — CI в GitHub Actions**
 
-- [ ] `ci.yml`: matrix, кэш Maven, `pytest`, отчёты тестов как артефакты.
-- [ ] Composite action для общей подготовки (Java + кэш).
-- [ ] Branch protection: merge только при зелёном CI; Dependabot для actions и зависимостей.
+- [x] `ci.yml`: matrix по Java 21 и 25, кэш Maven, отчёты тестов как артефакты. Сделано для `docs-api`.
+- [ ] `pytest` и `terraform fmt/validate` в `ci.yml`: добавить, когда появятся `lambdas/` и `infra/` (сейчас проверять нечего).
+- [x] Composite action для общей подготовки (Java + кэш): `.github/actions/setup-java-maven`.
+- [x] Branch protection: ruleset `protect-main` (merge только через PR при зелёных `build (21)` и `build (25)`, force push и удаление `main` запрещены); Dependabot для maven, github-actions и docker (`.github/dependabot.yml`).
 
 **Этап 4 — AWS-фундамент через Terraform**
 

@@ -1,0 +1,17 @@
+name: Setup Java and Maven cache
+description: Installs Temurin JDK and restores/saves the Maven dependency cache. Run actions/checkout before it.
+
+inputs:
+  java-version:
+    description: JDK major version to install
+    required: false
+    default: "21"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v6
+      with:
+        distribution: temurin
+        java-version: ${{ inputs.java-version }}
+        cache: maven
