@@ -6,7 +6,7 @@
 - **В облаке: Amazon ECS на EC2** (не Fargate, не EKS) — оркестрация бесплатна, платим кредитами только за инстанс.
 - **Вся AWS-инфраструктура — через Terraform.** Serverless-часть — через AWS SAM (или тоже Terraform).
 - **Kubernetes — локально через k3d**: те же образы, Helm, HPA, Keycloak Operator. Бесплатно навсегда.
-- **CI/CD — GitHub Actions** в публичном репозитории, доступ в AWS через **OIDC** (без access keys). Образы — в **Amazon ECR**.
+- **CI/CD — GitHub Actions** в публичном репозитории, доступ в AWS через **access keys отдельного IAM-пользователя в GitHub Secrets** (OIDC недоступен на Free plan: SCP запрещает `iam:*Provider*`; решение владельца). Регион **eu-north-1**. Образы — в **Amazon ECR**.
 - Lambda-функции — **Python** (boto3 + Powertools for AWS Lambda), тесты на pytest.
 - Event Listener SPI для Keycloak — **Java** (плагины Keycloak пишутся только на Java).
 
@@ -337,8 +337,8 @@ flowchart LR
 
 **Этап 4 — AWS-фундамент через Terraform**
 
-- [ ] AWS-аккаунт на Free plan, MFA на root, свой IAM-пользователь / Identity Center, Budget alert.
-- [ ] `infra/bootstrap`: S3 для state, GitHub OIDC provider, роли `ci-plan` (read-only) и `ci-deploy`.
+- [x] AWS-аккаунт на Free plan, свой IAM-пользователь `docvault-terraform`, Budget alert. Известные пробелы: нет MFA для входа в консоль (новый тип аккаунта этого не даёт без «Activate advanced features»), Identity Center не используется (создаёт Organizations). Регион только `eu-north-1`: в других SCP запрещает базовые операции EC2.
+- [x] `infra/bootstrap`: S3 для state, бюджет, IAM-пользователь `ci-deploy` (access key создаётся позже, на 4c, вместо OIDC provider и ролей: SCP запрещает `iam:*Provider*`).
 - [ ] Модули `network`, `ecs-cluster`, ECR-репозитории.
 - [ ] `terraform-plan.yml` (план в PR) и `terraform-apply.yml` (environment `prod` с approval).
 
