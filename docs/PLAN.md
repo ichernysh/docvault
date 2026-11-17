@@ -316,16 +316,17 @@ flowchart LR
 **Этап 1 — Локальный Keycloak + Spring (Docker Compose)**
 
 - [x] Monorepo `docvault`: `docs-api/`, `keycloak/`, `lambdas/`, `infra/`, `k8s/`, `.github/workflows/`, `docker-compose.yml`.
-- [ ] Compose: Keycloak + Postgres + `docs-api`; realm `docvault` импортируется из JSON при старте.
-- [ ] `docs-api` как resource server: CRUD документов, роли `viewer`/`editor`/`admin`, claim `tenant_id` через mapper.
-- [ ] Fine-grained права: шаринг документа конкретному юзеру, проверка в `@PreAuthorize`.
-- [ ] Тесты: `spring-security-test` + Testcontainers с реальным Keycloak.
+- [x] Compose: Keycloak + Postgres + `docs-api`; realm `docvault` импортируется из JSON при старте.
+- [x] `docs-api` как resource server: CRUD документов, роли `viewer`/`editor`/`admin`, claim `tenant_id` через mapper.
+- [x] Fine-grained права: шаринг документа конкретному юзеру, проверка в `@PreAuthorize`.
+- [x] Тесты: `spring-security-test` + Testcontainers с реальным Keycloak.
 
 **Этап 2 — Фронт и флоу**
 
-- [ ] Логин через браузер: простая SPA (Authorization Code + PKCE) или BFF на Spring (`oauth2Login`).
-- [ ] Refresh, logout, MFA (OTP) и passkey в настройках realm.
-- [ ] Брокеринг: «Войти через GitHub» (бесплатный OAuth App).
+- [x] Логин через браузер: простая SPA (Authorization Code + PKCE) или BFF на Spring (`oauth2Login`). Сделано: SPA на чистом JS (`web/`, nginx в compose). BFF можно сделать позже для сравнения.
+- [x] Refresh и logout (в SPA; PKCE S256 обязателен в клиенте `web`; CORS в `docs-api`).
+- [x] MFA (OTP): проверено локально на пользователе `dave` (Required action «Configure OTP»); в `realm-docvault.json` не добавлялось, потому что у пользователя с OTP не работает password grant, на котором держатся тесты. Passkey пропущен по решению владельца (в Keycloak 26.8 нужна сборка отдельного потока входа).
+- [ ] Брокеринг: «Войти через GitHub» (бесплатный OAuth App). Отложено по решению владельца, можно вернуться после CI.
 
 **Этап 3 — CI в GitHub Actions**
 

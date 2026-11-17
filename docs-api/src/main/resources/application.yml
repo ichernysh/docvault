@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: docs-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/docvault}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/docvault}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8080/realms/docvault/protocol/openid-connect/certs}
+          # token is accepted only if its `aud` contains at least one of these values
+          audiences:
+            - docs-api
+
+app:
+  cors:
+    # pages allowed to call this API from a browser; comma-separated; in the cloud, set it via the environment
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
