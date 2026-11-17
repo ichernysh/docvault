@@ -25,12 +25,10 @@ jobs:
       # 1. The machine is empty: first get the repository code
       - uses: actions/checkout@v7
 
-      # 2. Install the JDK the project is built with
-      - uses: actions/setup-java@v6
+      # 2. Install the JDK and restore the Maven cache: our own composite action (needs the checkout above)
+      - uses: ./.github/actions/setup-java-maven
         with:
-          distribution: temurin
           java-version: ${{ matrix.java }}
-          cache: maven
 
       # 3. The same command you run locally: batch mode, full build with all tests, from the module folder
       - name: Build and test
