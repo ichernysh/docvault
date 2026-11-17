@@ -29,7 +29,8 @@
 
 - **`terraform apply`, `terraform destroy`, `sam deploy`, любые AWS CLI-команды, меняющие ресурсы, — только после моего явного подтверждения.** `terraform plan`, `validate`, `fmt` — можно.
 - Никаких секретов в репозитории (он публичный): только GitHub Secrets / Variables, SSM Parameter Store, локальный `.env` в `.gitignore`.
-- В CI доступ в AWS только через **OIDC** (`aws-actions/configure-aws-credentials`), никаких access keys. `permissions` в workflows — минимальные.
+- В CI доступ в AWS через **access keys отдельного IAM-пользователя**, хранятся только в GitHub Secrets (лучше в environment `prod`). OIDC на нашем аккаунте недоступен: SCP Free plan запрещает `iam:*Provider*`, а «Activate advanced features» нарушает правила бюджета. Осознанное решение владельца: security учебная, терять нечего. Ключи CI не должны совпадать с ключом `docvault-terraform` (чтобы отзывать независимо). `permissions` в workflows — минимальные.
+- Регион AWS: **eu-north-1** (в `eu-central-1` и `us-east-1` аккаунт запрещает базовые операции EC2 через SCP).
 - Не делай `git push --force` и не переписывай историю `main`.
 
 ## Стек и решения (не менять без обсуждения)
