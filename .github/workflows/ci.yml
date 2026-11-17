@@ -1,0 +1,33 @@
+# Name shown on the Actions tab and in the PR checks list
+name: ci
+
+# Events that start this workflow
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Rights of the token GitHub gives to every run of this workflow.
+# Least privilege: only what the job really needs (it only reads the code).
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # The machine the job runs on. It is created fresh for every run: nothing from your laptop is there.
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. The machine is empty: first get the repository code
+      - uses: actions/checkout@v7
+
+      # 2. Install the JDK the project is built with
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # 3. The same command you run locally: batch mode, full build with all tests, from the module folder
+      - name: Build and test
+        run: ./mvnw -B verify
+        working-directory: docs-api
