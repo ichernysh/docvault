@@ -32,3 +32,18 @@ jobs:
       - name: Build and test
         run: ./mvnw -B verify
         working-directory: docs-api
+
+      # 4. Keep the test reports: the runner is deleted when the run ends.
+      # always(): without it the step is skipped when the tests failed, which is exactly when the reports matter.
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            docs-api/target/surefire-reports
+            docs-api/target/failsafe-reports
+          retention-days: 7
+
+
+
