@@ -48,5 +48,35 @@ jobs:
             docs-api/target/failsafe-reports
           retention-days: 7
 
+  # Static Terraform checks: no AWS credentials, no state, safe for any PR (including forks).
+  terraform:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Modules are validated through envs/prod, which calls them.
+        dir: [ infra/bootstrap, infra/envs/prod ]
 
+    steps:
+      - uses: actions/checkout@v7
 
+      # Installs the terraform binary (the runner does not have the version we need)
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ">=1.10"
+
+      # Fails if any file under infra/ is not formatted (bootstrap, modules, envs).
+      # Only reports, changes nothing (fix locally with `terraform fmt -recursive infra`).
+      # Runs once, not per matrix entry: it checks the whole infra/ tree.
+      - name: Format check
+        if: matrix.dir == 'infra/bootstrap'
+        run: terraform fmt -check -recursive infra
+
+      # -backend=false: do not connect to S3, only download providers.
+      - name: Init
+        run: terraform init -backend=false -input=false
+        working-directory: ${{ matrix.dir }}
+
+      - name: Validate
+        run: terraform validate
+        working-directory: ${{ matrix.dir }}
