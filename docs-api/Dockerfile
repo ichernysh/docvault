@@ -1,5 +1,5 @@
 # ---- build stage: JDK + Maven, thrown away after the jar is built ----
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM maven:3.9-eclipse-temurin-26 AS build
 WORKDIR /build
 # copy the pom first: dependencies are cached as a layer until the pom changes
 COPY pom.xml .
