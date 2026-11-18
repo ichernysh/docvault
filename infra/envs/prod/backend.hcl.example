@@ -1,0 +1,2 @@
+# Copy to backend.hcl (ignored by git). Bucket created by infra/bootstrap (see its output state_bucket_name).
+bucket = "docvault-tfstate-<account-id>-eu-north-1"
