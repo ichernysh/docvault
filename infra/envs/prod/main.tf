@@ -14,3 +14,9 @@ module "network" {
 
   azs = ["${var.region}a", "${var.region}b"]
 }
+
+module "ecr" {
+  source = "../../modules/ecr"
+
+  repositories = ["docs-api", "keycloak"]
+}
