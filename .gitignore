@@ -50,3 +50,6 @@ build/
 *.tfvars
 !*.tfvars.example
 crash.log
+
+# Terraform backend settings (bucket name contains the account id)
+backend.hcl
