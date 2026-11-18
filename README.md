@@ -132,6 +132,32 @@ terraform apply
 `terraform.tfvars` and `terraform.tfstate*` are git-ignored: the state is local and must be backed up
 outside the repository until later modules keep theirs in the S3 bucket.
 
+### Environment `prod` (`infra/envs/prod`)
+
+Its state lives in the S3 bucket from bootstrap (`prod/terraform.tfstate`, locked with `use_lockfile`).
+It wires three modules from `infra/modules/`:
+
+| Module | Creates |
+| --- | --- |
+| `network` | VPC `10.0.0.0/16`, two public subnets, internet gateway, route table, security group (80/443 in, SSH closed). No NAT Gateway |
+| `ecr` | repositories `docvault/docs-api` and `docvault/keycloak`: immutable tags, scan on push, keep the last 10 images |
+| `ecs-cluster` | ECS cluster, instance role and profile, launch template (`t3.medium`, IMDSv2), Auto Scaling Group, capacity provider |
+
+The container instance is **not running**: `desired_capacity = 0` in `ecs-cluster`, so it costs nothing.
+Setting it to `1` starts one server (maximum is 1, enforced by the ASG and a variable validation).
+
+```bash
+cd infra/envs/prod
+cp terraform.tfvars.example terraform.tfvars   # account id (git-ignored)
+cp backend.hcl.example backend.hcl             # state bucket name (git-ignored)
+export AWS_PROFILE=docvault
+terraform init -backend-config=backend.hcl
+terraform plan
+terraform apply
+```
+
+Always run a second `terraform plan` after `apply`: it must say `No changes`.
+
 ## Troubleshooting
 
 **`HTTPS required` when calling Keycloak from the host.** The realm setting `sslRequired=external` allows plain HTTP
@@ -163,6 +189,8 @@ web/                    browser page (login, API calls), served by nginx on port
 keycloak/               realm export (realm-docvault.json)
 docker/                 helper files for compose (Postgres init)
 infra/bootstrap/        Terraform: state bucket, budget, CI user (applied once, local state)
+infra/modules/          Terraform modules: network, ecr, ecs-cluster
+infra/envs/prod/        Terraform environment that wires the modules (state in S3)
 scripts/                get-token.sh, smoke-test.sh
 docker-compose.yml      local environment
 ```

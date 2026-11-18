@@ -106,6 +106,14 @@ resource "aws_autoscaling_group" "ecs_instance" {
     id      = aws_launch_template.ecs_instance.id
     version = "$Latest"
   }
+
+  # AWS adds this tag itself when the ASG becomes a capacity provider.
+  # Declaring it keeps the code equal to reality (otherwise every plan wants to remove it).
+  tag {
+    key                 = "AmazonECSManaged"
+    value               = ""
+    propagate_at_launch = true
+  }
 }
 
 # 6. Capacity provider: connects the cluster to the ASG so ECS knows where it may place tasks.

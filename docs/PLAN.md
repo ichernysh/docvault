@@ -339,7 +339,7 @@ flowchart LR
 
 - [x] AWS-аккаунт на Free plan, свой IAM-пользователь `docvault-terraform`, Budget alert. Известные пробелы: нет MFA для входа в консоль (новый тип аккаунта этого не даёт без «Activate advanced features»), Identity Center не используется (создаёт Organizations). Регион только `eu-north-1`: в других SCP запрещает базовые операции EC2.
 - [x] `infra/bootstrap`: S3 для state, бюджет, IAM-пользователь `ci-deploy` (access key создаётся позже, на 4c, вместо OIDC provider и ролей: SCP запрещает `iam:*Provider*`).
-- [ ] Модули `network`, `ecs-cluster`, ECR-репозитории.
+- [x] Модули `network`, `ecs-cluster`, ECR-репозитории (`infra/modules/*`, окружение `infra/envs/prod`, state в S3). ASG с `desired_capacity = 0`: сервер не запущен, `t3.medium` как запускаемый тип проверим на этапе 5.
 - [ ] `terraform-plan.yml` (план в PR) и `terraform-apply.yml` (environment `prod` с approval).
 
 **Этап 5 — CD в ECS**
