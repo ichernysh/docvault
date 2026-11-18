@@ -1,0 +1,55 @@
+name: terraform-plan
+
+# Shows what `terraform apply` would change, before the PR is merged.
+# Runs only when infra or this workflow's own files change.
+# Do NOT make it a required check: with `paths`, it does not start on other PRs and the PR would wait forever.
+on:
+  pull_request:
+    paths:
+      - infra/**
+      - .github/workflows/terraform-plan.yml
+      - .github/actions/setup-terraform-aws/**
+
+permissions:
+  contents: read
+
+# A new push to the same PR cancels the older plan run.
+concurrency:
+  group: terraform-plan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    env:
+      # Terraform turns TF_VAR_<name> into var.<name>, so no terraform.tfvars file is needed in CI.
+      TF_VAR_account_id: ${{ vars.AWS_ACCOUNT_ID }}
+    defaults:
+      run:
+        working-directory: infra/envs/prod
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pull requests from forks and from Dependabot get empty secrets, so this job fails there. This is expected.
+      - uses: ./.github/actions/setup-terraform-aws
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # Bucket name is not in the code (partial backend config): it comes from a repository variable.
+      - name: Init
+        run: terraform init -input=false -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+
+      # Explicit `shell: bash` turns on pipefail: if plan fails, the step fails even though `tee` succeeds.
+      - name: Plan
+        shell: bash
+        run: |
+          terraform plan -input=false -no-color | tee plan.txt
+          {
+            echo '## Terraform plan (infra/envs/prod)'
+            echo '```'
+            cat plan.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
