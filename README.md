@@ -98,8 +98,8 @@ The cloud part lives in `infra/` and is described with Terraform. The account is
 ### Account constraints
 
 - **Region: `eu-north-1` only.** In other regions the account's service control policies (SCP) deny basic EC2 calls.
-- **No OIDC for GitHub Actions.** The same SCPs deny `iam:*Provider*`, so CI will use an access key of a dedicated
-  IAM user (`ci-deploy`) stored in GitHub Secrets. Not creating it until the workflows need it.
+- **No OIDC for GitHub Actions.** The same SCPs deny `iam:*Provider*`, so CI uses an access key of a dedicated
+  IAM user (`ci-deploy`) stored in GitHub Secrets (see "CI for Terraform").
 - No MFA for console sign-in (this account type has no such setting). Do not click "Activate advanced features":
   it is irreversible, creates AWS Organizations and removes the spend limit.
 
@@ -119,7 +119,7 @@ using an access key of the IAM user `docvault-terraform`. Keys never go into the
 
 Applied once by hand with a **local state** (the state bucket does not exist before it is created).
 It creates the S3 bucket for the state of later modules (versioning, public access blocked),
-a monthly cost budget with email alerts, and the IAM user `ci-deploy` (no access key yet).
+a monthly cost budget with email alerts, and the IAM user `ci-deploy` (its access key is created by hand, see below).
 
 ```bash
 cd infra/bootstrap
@@ -157,6 +157,35 @@ terraform apply
 ```
 
 Always run a second `terraform plan` after `apply`: it must say `No changes`.
+
+### CI for Terraform
+
+| Workflow | When | What |
+| --- | --- | --- |
+| `ci.yml`, job `terraform` | every PR and push to `main` | `fmt -check`, `init -backend=false`, `validate` for `infra/bootstrap` and `infra/envs/prod`. No AWS keys |
+| `terraform-plan.yml` | PR that changes `infra/**` | `terraform plan`, result in the run's Summary. Not a required check (`paths` filter) |
+| `terraform-apply.yml` | push to `main` that changes `infra/**`, or manual run | `plan -out=tfplan`, then `apply tfplan`. Waits for approval in environment `prod` |
+
+Both AWS workflows use the composite action `.github/actions/setup-terraform-aws` (installs Terraform, logs in to AWS).
+
+Setup in GitHub (Settings):
+
+- Secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`: the access key of IAM user `ci-deploy`
+  (must differ from the key of `docvault-terraform`).
+- Variables: `AWS_REGION`, `AWS_ACCOUNT_ID`, `TF_STATE_BUCKET`.
+- Environment `prod`: **Required reviewers** (the owner) and deployment branch `main` only.
+  Without Required reviewers `apply` runs with no pause: check that a new run shows `Waiting`.
+
+Key rotation: create a second key for `ci-deploy`, update both secrets, delete the old key
+(`aws iam list-access-keys --user-name ci-deploy`).
+
+Known risks (accepted for a learning project):
+
+- `ci-deploy` has `AdministratorAccess` and a long-lived key in a public repository's secrets. A leaked key means
+  access to the account. Limits: budget alert, no secrets in logs, delete the key when CI is not used.
+- A person with write access can change a workflow in a PR and make `plan` run with the key. Pull requests from forks
+  and Dependabot get no secrets, so `plan` fails there: this is expected.
+- OIDC (no stored keys) would be the right choice, but the account's SCPs deny it.
 
 ## Troubleshooting
 
