@@ -20,7 +20,7 @@
 | Client credentials (сервис-к-сервису) | Lambda `login-guard` получает токен своего service account |
 | Keycloak SPI | Event Listener публикует LOGIN / LOGIN_ERROR в SNS |
 | **GitHub Actions** | CI на PR, сборка образов, деплой в ECS, Terraform plan/apply, SAM deploy |
-| AWS IAM без ключей | GitHub Actions → AWS через OIDC federation |
+| AWS-доступ из CI | GitHub Actions → AWS по access key пользователя `ci-deploy` (OIDC недоступен: SCP) |
 | **Terraform** | VPC, IAM, ECR, ECS cluster, EC2 Auto Scaling Group, Budget |
 | **ECS** | Task definitions, services, rolling deploy, Service Auto Scaling |
 | **Kubernetes** | k3d локально: Deployments, Services, Ingress, Helm, HPA, Keycloak Operator |
@@ -83,7 +83,7 @@ flowchart TB
   LS -->|client credentials + Admin API| KC
 
   REPO --> GHA
-  GHA -->|OIDC AssumeRole| AWSAPI[AWS APIs]
+  GHA -->|access key ci-deploy| AWSAPI[AWS APIs]
   GHA -->|docker push| ECR
   GHA -->|terraform apply| VPC
   GHA -->|update ECS service| ECS
@@ -92,7 +92,7 @@ flowchart TB
 
 | Компонент | Роль |
 | --- | --- |
-| Terraform | Описывает VPC, subnets, security groups, IAM (OIDC provider, роли), ECR, ECS cluster, ASG с ECS-optimized AMI, task definitions, services, AWS Budget. State — в S3 (с lockfile) |
+| Terraform | Описывает VPC, subnets, security groups, IAM (роли ECS), ECR, ECS cluster, ASG с ECS-optimized AMI, task definitions, services, AWS Budget. State — в S3 (с lockfile) |
 | ECS на EC2 | Один container instance (t3.medium, 4 ГБ). Сеть tasks — `bridge` или `host`. Логи — CloudWatch Logs с коротким retention |
 | Caddy | HTTPS с Let's Encrypt, домен sslip.io / DuckDNS. Заменяет ALB в обычном режиме |
 | Keycloak | Realm `docvault`: clients `web` (public + PKCE), `docs-api` (bearer-only), `login-guard` (service account) |
@@ -150,12 +150,12 @@ sequenceDiagram
 | Файл | Триггер | Что делает |
 | --- | --- | --- |
 | `ci.yml` | `pull_request` | `mvn verify` (Testcontainers + Keycloak), `pytest` для Lambda, `terraform fmt` + `validate`, линтеры; matrix по модулям |
-| `terraform-plan.yml` | `pull_request` с изменениями в `infra/**` | `terraform plan` через OIDC, план — комментарием в PR |
+| `terraform-plan.yml` | `pull_request` с изменениями в `infra/**` | `terraform plan` по ключам `ci-deploy`, план — в job summary (не обязательная проверка: из-за `paths` не запускается на других PR) |
 | `build.yml` | `push` в `main` | Сборка образов `docs-api` и `keycloak`, push в ECR с тегом = SHA коммита |
 | `deploy-ecs.yml` | после `build.yml` (`workflow_run`) или `workflow_dispatch` | Render task definition с новым образом → deploy ECS service → ожидание стабильности → smoke test |
 | `deploy-serverless.yml` | `push` в `main` с изменениями в `lambdas/**` | `sam build` + `sam deploy` |
-| `terraform-apply.yml` | `workflow_dispatch` / `push` в `main` с `infra/**` | `terraform apply` в environment `prod` с ручным approval |
-| `_reusable-aws-auth.yml` | `workflow_call` | Reusable workflow: OIDC-логин в AWS, переиспользуется остальными |
+| `terraform-apply.yml` | `workflow_dispatch` / `push` в `main` с `infra/**` | `plan -out=tfplan` + `apply tfplan` в environment `prod` с ручным approval |
+| `.github/actions/setup-terraform-aws` | composite action | Установка Terraform и вход в AWS по ключам (ключи приходят через `inputs`), используется plan и apply |
 | `cloud-up.yml` | `workflow_dispatch` | Поднять облако на сессию практики: ASG `desired = 1`, дождаться healthy ECS-сервисов |
 | `cloud-down.yml` | `schedule` (каждый день 23:00 UTC) + `workflow_dispatch` | Выключить облако: ASG `desired = 0`, `enable_alb = false`; страховка от забытого инстанса |
 
@@ -167,7 +167,7 @@ sequenceDiagram
 - **Matrix:** параллельный прогон по модулям / версиям Java.
 - **Кэш и артефакты:** `actions/cache` или встроенный кэш `setup-java`; `upload-artifact` для отчётов тестов.
 - **Секреты и переменные:** `secrets`, `vars`, **environments** (`dev`, `prod`) с required reviewers и своими секретами.
-- **Безопасность:** `permissions` с минимальными правами (`id-token: write` для OIDC, `contents: read`); **OIDC вместо access keys**; pinning actions; Dependabot для обновления actions.
+- **Безопасность:** `permissions` с минимальными правами (`contents: read`); доступ в AWS по access keys отдельного пользователя (OIDC недоступен на этом аккаунте; в проде был бы OIDC); pinning actions; Dependabot для обновления actions.
 - **Concurrency:** `concurrency` group, чтобы два деплоя не шли одновременно.
 - **Runners:** GitHub-hosted vs self-hosted (как идея — можно поднять self-hosted runner в локальном k3d через Actions Runner Controller).
 
@@ -185,7 +185,6 @@ on:
     branches: [main]
 
 permissions:
-  id-token: write   # OIDC-токен для AWS
   contents: read
 
 concurrency:
@@ -232,7 +231,7 @@ jobs:
 
 ```
 infra/
-  bootstrap/        # S3 bucket для state, GitHub OIDC provider, роли для CI (применяется один раз вручную)
+  bootstrap/        # S3 bucket для state, бюджет, IAM-пользователь `ci-deploy` (применяется один раз вручную)
   modules/
     network/        # VPC, public subnets, security groups
     ecs-cluster/    # ECS cluster, ASG + launch template (ECS-optimized AMI), capacity provider
@@ -331,7 +330,8 @@ flowchart LR
 **Этап 3 — CI в GitHub Actions**
 
 - [x] `ci.yml`: matrix по Java 21 и 25, кэш Maven, отчёты тестов как артефакты. Сделано для `docs-api`.
-- [ ] `pytest` и `terraform fmt/validate` в `ci.yml`: добавить, когда появятся `lambdas/` и `infra/` (сейчас проверять нечего).
+- [x] `terraform fmt/validate` в `ci.yml` (job `terraform`, matrix по `infra/bootstrap` и `infra/envs/prod`, без ключей AWS).
+- [ ] `pytest` в `ci.yml`: добавить, когда появятся `lambdas/`.
 - [x] Composite action для общей подготовки (Java + кэш): `.github/actions/setup-java-maven`.
 - [x] Branch protection: ruleset `protect-main` (merge только через PR при зелёных `build (21)` и `build (25)`, force push и удаление `main` запрещены); Dependabot для maven, github-actions и docker (`.github/dependabot.yml`).
 
@@ -340,7 +340,7 @@ flowchart LR
 - [x] AWS-аккаунт на Free plan, свой IAM-пользователь `docvault-terraform`, Budget alert. Известные пробелы: нет MFA для входа в консоль (новый тип аккаунта этого не даёт без «Activate advanced features»), Identity Center не используется (создаёт Organizations). Регион только `eu-north-1`: в других SCP запрещает базовые операции EC2.
 - [x] `infra/bootstrap`: S3 для state, бюджет, IAM-пользователь `ci-deploy` (access key создаётся позже, на 4c, вместо OIDC provider и ролей: SCP запрещает `iam:*Provider*`).
 - [x] Модули `network`, `ecs-cluster`, ECR-репозитории (`infra/modules/*`, окружение `infra/envs/prod`, state в S3). ASG с `desired_capacity = 0`: сервер не запущен, `t3.medium` как запускаемый тип проверим на этапе 5.
-- [ ] `terraform-plan.yml` (план в PR) и `terraform-apply.yml` (environment `prod` с approval).
+- [x] `terraform-plan.yml` (план в job summary) и `terraform-apply.yml` (environment `prod` с approval). Ключ `ci-deploy` в GitHub Secrets (одна пара), composite action `setup-terraform-aws`. Проверено: apply встаёт в Waiting и идёт после Approve.
 
 **Этап 5 — CD в ECS**
 
